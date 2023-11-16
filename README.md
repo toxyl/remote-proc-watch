@@ -3,6 +3,9 @@
 
 ## Installation
 ```sh
+# get dependencies
+go mod tidy 
+# build app
 CGO_ENABLED=0 go build -o /usr/local/bin/rpw .
 ```
 
