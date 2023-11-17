@@ -14,7 +14,66 @@ import (
 	"github.com/toxyl/glog"
 )
 
+const (
+	WP        = 20
+	WHOST     = 32
+	WPID      = 10
+	WCMD      = 35
+	WCPU      = 55
+	WCPU_HEAD = WCPU - 20
+	WMEM      = 65
+	WMEM_HEAD = WMEM - 19
+	WMEMB     = 15
+)
+
 var log = glog.NewLoggerSimple("rpw")
+
+func printHeader(host, pid, cmd, cpu, mem string, wHost, wPid, wCmd, wCpu, wMem, wMemB int) {
+	log.Blank(
+		glog.Bold()+"\033[97;40m%s %s %s %s %s %s"+glog.Reset(),
+		glog.PadRight(host, wHost, ' '),
+		glog.PadRight(pid, wPid, ' '),
+		glog.PadRight(cmd, wCmd, ' '),
+		glog.PadRight(cpu, wCpu, ' '),
+		glog.PadRight(mem, wMem-wMemB, ' '),
+		glog.PadRight("", wMemB, ' '),
+	)
+}
+
+func printRow(host, pid, cmd string, cpu, mem, memB float64, wHost, wPid, wCmd, wCpu, wMem, wMemB, wP int) {
+	log.Blank(
+		"%s %s %s %s %s %s",
+		glog.PadRight(glog.Auto(host), wHost, ' '),
+		glog.PadRight(glog.Auto(pid), wPid, ' '),
+		glog.PadRight(glog.Auto(cmd), wCmd, ' '),
+		glog.PadRight(glog.ProgressBar(cpu/100.0, wP), wCpu, ' '),
+		glog.PadRight(glog.ProgressBar(mem/100.0, wP), wMem-wMemB, ' '),
+		glog.PadLeft(glog.HumanReadableBytesIEC(memB*1024), wMemB, ' '),
+	)
+}
+
+func printFooter(cpu, mem, memB float64, wHost, wPid, wCmd, wCpu, wMem, wMemB, wP, numHosts int) {
+	log.Blank(
+		glog.Bold()+"\033[97;40m%s %s %s"+glog.Reset()+" %s %s %s",
+		glog.PadRight("SUM", wHost, ' '),
+		glog.PadRight("", wPid, ' '),
+		glog.PadRight("", wCmd, ' '),
+		glog.PadRight(glog.ProgressBar(cpu/100.0, wP), wCpu, ' '),
+		glog.PadRight(glog.ProgressBar(mem/100.0, wP), wMem-wMemB, ' '),
+		glog.PadLeft(glog.HumanReadableBytesIEC(memB*1024), wMemB, ' '),
+	)
+	if numHosts > 0 {
+		log.Blank(
+			glog.Bold()+"\033[97;40m%s %s %s"+glog.Reset()+" %s %s %s",
+			glog.PadRight("AVG", wHost, ' '),
+			glog.PadRight("", wPid, ' '),
+			glog.PadRight("", wCmd, ' '),
+			glog.PadRight(glog.ProgressBar(cpu/float64(numHosts)/100.0, wP), wCpu, ' '),
+			glog.PadRight(glog.ProgressBar(mem/float64(numHosts)/100.0, wP), wMem-wMemB, ' '),
+			glog.PadLeft(glog.HumanReadableBytesIEC(memB/float64(numHosts)*1024), wMemB, ' '),
+		)
+	}
+}
 
 type ProcessInfo struct {
 	Timestamp time.Time
@@ -79,12 +138,9 @@ func MonitorRemoteProcesses(remoteHosts, processNames []string, dUpdate time.Dur
 
 	sort.Slice(list, func(i, j int) bool {
 		var (
-			hostA = list[i].Host
-			hostB = list[j].Host
-			cmdA  = list[i].CMD
-			cmdB  = list[j].CMD
-			pidA  = list[i].PID
-			pidB  = list[j].PID
+			hostA, hostB = list[i].Host, list[j].Host
+			cmdA, cmdB   = list[i].CMD, list[j].CMD
+			pidA, pidB   = list[i].PID, list[j].PID
 		)
 		if hostA != hostB {
 			return hostA < hostB
@@ -94,37 +150,11 @@ func MonitorRemoteProcesses(remoteHosts, processNames []string, dUpdate time.Dur
 		}
 		return cmdA < cmdB
 	})
-	cpuPctTotal := 0.0
-	memPctTotal := 0.0
-	memKBytesTotal := 0.0
-
-	const (
-		WP        = 20
-		WHOST     = 32
-		WPID      = 10
-		WCMD      = 35
-		WCPU      = 55
-		WCPU_HEAD = WCPU - 18
-		WMEM      = 65
-		WMEM_HEAD = WMEM - 18
-		WMEMB     = 15
-	)
+	cpuPctTotal, memPctTotal, memKBytesTotal := 0.0, 0.0, 0.0
 
 	fmt.Print(glog.StoreCursor())
-	log.Blank(
-		"%s [ every %s ] %s\n",
-		glog.Time(time.Now()),
-		glog.Auto(dUpdate),
-		glog.Auto(processNames),
-	)
-	log.Blank(
-		glog.Bold()+"\033[97;40m%s %s %s %s %s"+glog.Reset(),
-		glog.PadRight("HOST", WHOST, ' '),
-		glog.PadRight("PID", WPID, ' '),
-		glog.PadRight("CMD", WCMD, ' '),
-		glog.PadRight("CPU", WCPU_HEAD, ' '),
-		glog.PadRight("MEM", WMEM_HEAD, ' '),
-	)
+	log.Blank("%s [ every %s ] %s\n", glog.Time(time.Now()), glog.Auto(dUpdate), glog.Auto(processNames))
+	printHeader("HOST", "PID", "CMD", "CPU", "MEM", WHOST, WPID, WCMD, WCPU_HEAD, WMEM_HEAD, WMEMB)
 	for _, p := range list {
 		cpuPct, _ := glog.GetFloat(p.CPU)
 		memPct, _ := glog.GetFloat(p.MEM)
@@ -132,25 +162,9 @@ func MonitorRemoteProcesses(remoteHosts, processNames []string, dUpdate time.Dur
 		cpuPctTotal += cpuPct
 		memPctTotal += memPct
 		memKBytesTotal += memKBytes
-		log.Blank(
-			"%s %s %s %s   %s %s",
-			glog.PadRight(glog.Auto(p.Host), WHOST, ' '),
-			glog.PadRight(glog.Auto(p.PID), WPID, ' '),
-			glog.PadRight(glog.Auto(p.CMD), WCMD, ' '),
-			glog.PadRight(glog.ProgressBar(cpuPct/100.0, WP), WCPU, ' '),
-			glog.PadRight(glog.ProgressBar(memPct/100.0, WP), WMEM-WMEMB, ' '),
-			glog.PadLeft(glog.HumanReadableBytesIEC(memKBytes*1024), WMEMB, ' '),
-		)
+		printRow(p.Host, p.PID, p.CMD, cpuPct, memPct, memKBytesTotal, WHOST, WPID, WCMD, WCPU, WMEM, WMEMB, WP)
 	}
-	log.Blank(
-		"\033[97;40m%s %s "+glog.Bold()+"%s"+glog.Reset()+" %s   %s %s",
-		glog.PadRight("", WHOST, ' '),
-		glog.PadRight("", WPID, ' '),
-		glog.PadRight("TOTAL", WCMD, ' '),
-		glog.PadRight(glog.ProgressBar(cpuPctTotal/100.0, WP), WCPU, ' '),
-		glog.PadRight(glog.ProgressBar(memPctTotal/100.0, WP), WMEM-WMEMB, ' '),
-		glog.PadLeft(glog.HumanReadableBytesIEC(memKBytesTotal*1024), WMEMB, ' '),
-	)
+	printFooter(cpuPctTotal, memPctTotal, memKBytesTotal, WHOST, WPID, WCMD, WCPU, WMEM, WMEMB, WP, len(remoteHosts))
 	fmt.Print(glog.RestoreCursor())
 }
 
@@ -187,13 +201,10 @@ func main() {
 		os.Exit(2)
 	}
 
-	remoteHosts := strings.Split(os.Args[2], ",")
-	processNames := os.Args[3:]
-
 	fmt.Print("\033[H\033[2J")
 	t := time.Now()
 	for {
-		MonitorRemoteProcesses(remoteHosts, processNames, updateFreq)
+		MonitorRemoteProcesses(strings.Split(os.Args[2], ","), os.Args[3:], updateFreq)
 		time.Sleep(updateFreq - time.Since(t))
 		t = time.Now()
 	}
