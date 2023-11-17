@@ -162,7 +162,7 @@ func MonitorRemoteProcesses(remoteHosts, processNames []string, dUpdate time.Dur
 		cpuPctTotal += cpuPct
 		memPctTotal += memPct
 		memKBytesTotal += memKBytes
-		printRow(p.Host, p.PID, p.CMD, cpuPct, memPct, memKBytesTotal, WHOST, WPID, WCMD, WCPU, WMEM, WMEMB, WP)
+		printRow(p.Host, p.PID, p.CMD, cpuPct, memPct, memKBytes, WHOST, WPID, WCMD, WCPU, WMEM, WMEMB, WP)
 	}
 	printFooter(cpuPctTotal, memPctTotal, memKBytesTotal, WHOST, WPID, WCMD, WCPU, WMEM, WMEMB, WP, len(remoteHosts))
 	fmt.Print(glog.RestoreCursor())
