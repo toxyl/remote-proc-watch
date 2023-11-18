@@ -150,11 +150,24 @@ func MonitorRemoteProcesses(remoteHosts, processNames []string, dUpdate time.Dur
 		}
 		return cmdA < cmdB
 	})
-	cpuPctTotal, memPctTotal, memKBytesTotal := 0.0, 0.0, 0.0
+
+	var (
+		cpuPctTotal    = 0.0
+		memPctTotal    = 0.0
+		memKBytesTotal = 0.0
+		colWHost       = 0
+		colWPid        = 0
+		colWCmd        = 0
+	)
+	for _, p := range list {
+		colWHost = glog.Max(colWHost, len(p.Host))
+		colWPid = glog.Max(colWPid, len(p.PID))
+		colWCmd = glog.Max(colWCmd, len(p.CMD))
+	}
 
 	fmt.Print("\033[2J\033[H")
 	log.Blank("%s [ every %s ] %s\n", glog.Time(time.Now()), glog.Auto(dUpdate), glog.Auto(processNames))
-	printHeader("HOST", "PID", "CMD", "CPU", "MEM", WHOST, WPID, WCMD, WCPU_HEAD, WMEM_HEAD, WMEMB)
+	printHeader("HOST", "PID", "CMD", "CPU", "MEM", colWHost, colWPid, colWCmd, WCPU_HEAD, WMEM_HEAD, WMEMB)
 	for _, p := range list {
 		cpuPct, _ := glog.GetFloat(p.CPU)
 		memPct, _ := glog.GetFloat(p.MEM)
@@ -162,9 +175,9 @@ func MonitorRemoteProcesses(remoteHosts, processNames []string, dUpdate time.Dur
 		cpuPctTotal += cpuPct
 		memPctTotal += memPct
 		memKBytesTotal += memKBytes
-		printRow(p.Host, p.PID, p.CMD, cpuPct, memPct, memKBytes, WHOST, WPID, WCMD, WCPU, WMEM, WMEMB, WP)
+		printRow(p.Host, p.PID, p.CMD, cpuPct, memPct, memKBytes, colWHost, colWPid, colWCmd, WCPU, WMEM, WMEMB, WP)
 	}
-	printFooter(cpuPctTotal, memPctTotal, memKBytesTotal, WHOST, WPID, WCMD, WCPU, WMEM, WMEMB, WP, len(remoteHosts))
+	printFooter(cpuPctTotal, memPctTotal, memKBytesTotal, colWHost, colWPid, colWCmd, WCPU, WMEM, WMEMB, WP, len(remoteHosts))
 }
 
 func handleCtrlC() {
