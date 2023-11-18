@@ -152,7 +152,7 @@ func MonitorRemoteProcesses(remoteHosts, processNames []string, dUpdate time.Dur
 	})
 	cpuPctTotal, memPctTotal, memKBytesTotal := 0.0, 0.0, 0.0
 
-	fmt.Print(glog.StoreCursor())
+	fmt.Print("\033[2J\033[H")
 	log.Blank("%s [ every %s ] %s\n", glog.Time(time.Now()), glog.Auto(dUpdate), glog.Auto(processNames))
 	printHeader("HOST", "PID", "CMD", "CPU", "MEM", WHOST, WPID, WCMD, WCPU_HEAD, WMEM_HEAD, WMEMB)
 	for _, p := range list {
@@ -165,7 +165,6 @@ func MonitorRemoteProcesses(remoteHosts, processNames []string, dUpdate time.Dur
 		printRow(p.Host, p.PID, p.CMD, cpuPct, memPct, memKBytes, WHOST, WPID, WCMD, WCPU, WMEM, WMEMB, WP)
 	}
 	printFooter(cpuPctTotal, memPctTotal, memKBytesTotal, WHOST, WPID, WCMD, WCPU, WMEM, WMEMB, WP, len(remoteHosts))
-	fmt.Print(glog.RestoreCursor())
 }
 
 func handleCtrlC() {
